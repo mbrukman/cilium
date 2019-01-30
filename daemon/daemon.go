@@ -1546,3 +1546,9 @@ func (d *Daemon) GetNodeSuffix() string {
 
 	return ip.String()
 }
+
+// ClearPolicyConsumers removes references to the specified id from the rules in
+// the daemon's policy epository.
+func (d *Daemon) ClearPolicyConsumers(id uint16) *sync.WaitGroup {
+	return d.policy.RemoveIdentifierFromRuleCaches(id)
+}
