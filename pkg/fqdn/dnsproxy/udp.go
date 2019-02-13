@@ -62,12 +62,15 @@ func transparentSetsockopt(fd int) error {
 	return nil
 }
 
-func listenConfig() *net.ListenConfig {
+func listenConfig(mark int) *net.ListenConfig {
 	return &net.ListenConfig{
 		Control: func(network, address string, c syscall.RawConn) error {
 			var opErr error
 			err := c.Control(func(fd uintptr) {
 				opErr = transparentSetsockopt(int(fd))
+				if opErr == nil {
+					opErr = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_MARK, mark)
+				}
 			})
 			if err != nil {
 				return err
@@ -78,7 +81,8 @@ func listenConfig() *net.ListenConfig {
 }
 
 func listenPacket(network, addr string) *net.IPConn {
-	conn, err := listenConfig().ListenPacket(context.Background(), network, addr)
+	// Mark outgoing packets as proxy egress return traffic (0x0b00)
+	conn, err := listenConfig(0xb00).ListenPacket(context.Background(), network, addr)
 	if err != nil {
 		log.Printf("ListenPacket failed on address %s for %s: %s", addr, network, err)
 		return nil

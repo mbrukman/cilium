@@ -21,6 +21,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/cilium/cilium/pkg/fqdn/regexpmap"
@@ -493,6 +494,16 @@ func bindToAddr(address string, port uint16) (UDPConn *net.UDPConn, TCPListener 
 	if err != nil {
 		return nil, nil, err
 	}
+	tcpFile, err := TCPListener.File()
+	if err != nil {
+		return nil, nil, err
+	}
+	// Mark outgoing packets as proxy egress return traffic (0x0b00)
+	err = syscall.SetsockoptInt(int(tcpFile.Fd()), syscall.SOL_SOCKET, syscall.SO_MARK, 0xb00)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	UDPAddr, err := net.ResolveUDPAddr("udp", TCPListener.Addr().String())
 	if err != nil {
 		return nil, nil, err
