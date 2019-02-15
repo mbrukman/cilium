@@ -16,6 +16,8 @@ package metrics
 
 import (
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -24,13 +26,30 @@ import (
 // around API calls.
 // It records the timestamp of an API call in the provided gauge.
 type APIEventTSHelper struct {
-	Next    http.Handler
-	TSGauge prometheus.Gauge
+	Next      http.Handler
+	TSGauge   prometheus.Gauge
+	Histogram *prometheus.HistogramVec
+}
+
+type responderWrapper struct {
+	http.ResponseWriter
+	code int
+}
+
+func (rw *responderWrapper) WriteHeader(code int) {
+	rw.code = code
+	rw.ResponseWriter.WriteHeader(code)
 }
 
 // ServeHTTP implements the http.Handler interface. It records the timestamp
 // this API call began at, then chains to the next handler.
 func (m *APIEventTSHelper) ServeHTTP(r http.ResponseWriter, req *http.Request) {
 	m.TSGauge.SetToCurrentTime()
-	m.Next.ServeHTTP(r, req)
+	t := time.Now()
+	rw := &responderWrapper{ResponseWriter: r}
+	m.Next.ServeHTTP(rw, req)
+	if req != nil && req.URL != nil && req.URL.Path != "" {
+		took := float64(time.Since(t).Nanoseconds()) / float64(time.Second)
+		m.Histogram.WithLabelValues(req.URL.Path, strconv.Itoa(rw.code)).Observe(took)
+	}
 }

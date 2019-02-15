@@ -131,6 +131,22 @@ var (
 	// LabelKind is the kind a label
 	LabelKind = "kind"
 
+	// LabelPath is the label for the API path
+	LabelPath = "api_path"
+
+	// LabelAPIReturnCode is the HTTP code returned for that API path
+	LabelAPIReturnCode = "return_code"
+
+	// API interactions
+
+	// APIInteractions is the total time taken to process an API call made
+	// to the cilium-agent
+	APIInteractions = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: Namespace,
+		Name:      "api_process_time",
+		Help:      "API processing time stats labeled by API PATH",
+	}, []string{LabelPath, LabelAPIReturnCode})
+
 	// Endpoint
 
 	// EndpointCount is a function used to collect this metric.
@@ -493,6 +509,7 @@ func init() {
 	MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{Namespace: Namespace}))
 	// TODO: Figure out how to put this into a Namespace
 	//MustRegister(prometheus.NewGoCollector())
+	MustRegister(APIInteractions)
 
 	MustRegister(EndpointCountRegenerating)
 	MustRegister(EndpointRegenerationCount)
